@@ -1,4 +1,4 @@
--- Table for storing data
+-- Create table for storing booking records
 CREATE TABLE IF NOT EXISTS bookings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     client_name TEXT NOT NULL,
@@ -9,5 +9,5 @@ CREATE TABLE IF NOT EXISTS bookings (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Index for fast date and time queries
+-- Create index for optimized search queries
 CREATE INDEX IF NOT EXISTS idx_booking_datetime ON bookings(booking_date, booking_time);
