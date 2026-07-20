@@ -13,6 +13,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const availableTimes = ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
 
+    // Safe helper function to parse JSON responses and handle HTML server errors
+    async function safeFetchJson(url, options = {}) {
+        const response = await fetch(url, options);
+        const contentType = response.headers.get('content-type') || '';
+
+        // Verify if the server returned valid JSON content
+        if (!contentType.includes('application/json')) {
+            const rawText = await response.text();
+            console.error('Server returned non-JSON response:', rawText);
+            throw new Error('Server returned HTML instead of JSON. Check backend server logs.');
+        }
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || 'An error occurred while processing the request.');
+        }
+
+        return data;
+    }
+
     // Fetch occupied slots on date selection
     dateInput.addEventListener('change', async () => {
         const selectedDate = dateInput.value;
@@ -23,11 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
         submitBtn.disabled = true;
 
         try {
-            const response = await fetch(`../api/get_slots.php?date=${encodeURIComponent(selectedDate)}`);
-            const data = await response.json();
-
-            if (!response.ok) throw new Error(data.error || 'Failed to fetch slots');
-
+            const data = await safeFetchJson(`../api/get_slots.php?date=${encodeURIComponent(selectedDate)}`);
             renderSlots(availableTimes, data.booked_slots || []);
         } catch (err) {
             showAlert(err.message, 'danger');
@@ -60,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Submit booking request
+    // Submit booking request safely
     bookingForm.addEventListener('submit', async (e) => {
         e.preventDefault();
 
@@ -75,15 +91,11 @@ document.addEventListener('DOMContentLoaded', () => {
         submitBtn.disabled = true;
 
         try {
-            const response = await fetch('../api/book.php', {
+            const result = await safeFetchJson('../api/book.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-
-            const result = await response.json();
-
-            if (!response.ok) throw new Error(result.error || 'Booking failed');
 
             showAlert(result.message, 'success');
             bookingForm.reset();
