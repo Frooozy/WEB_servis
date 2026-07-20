@@ -7,43 +7,38 @@ document.addEventListener('DOMContentLoaded', () => {
     const bookingForm = document.getElementById('bookingForm');
     const alertContainer = document.getElementById('alertContainer');
 
-    // Restrict date picker to current date onwards
+    // Restrict date selection to current date onwards
     const today = new Date().toISOString().split('T')[0];
     dateInput.min = today;
 
     const availableTimes = ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
 
-    // Safe helper function to parse JSON responses and handle HTML server errors
-    async function safeFetchJson(url, options = {}) {
-        const response = await fetch(url, options);
-        const contentType = response.headers.get('content-type') || '';
-
-        // Verify if the server returned valid JSON content
-        if (!contentType.includes('application/json')) {
-            const rawText = await response.text();
-            console.error('Server returned non-JSON response:', rawText);
-            throw new Error('Server returned HTML instead of JSON. Check backend server logs.');
-        }
-
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.error || 'An error occurred while processing the request.');
-        }
-
-        return data;
-    }
-
-    // Fetch occupied slots on date selection
+    // Handle date selection change
     dateInput.addEventListener('change', async () => {
         const selectedDate = dateInput.value;
-        if (!selectedDate) return;
-
-        slotsContainer.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Loading slots...';
+        
+        // Reset selected time slot on date change
         selectedTimeInput.value = '';
         submitBtn.disabled = true;
 
+        if (!selectedDate) {
+            slotsContainer.innerHTML = '<small class="text-muted">Select a date to view available time slots</small>';
+            return;
+        }
+
+        slotsContainer.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Loading slots...';
+
         try {
-            const data = await safeFetchJson(`../api/get_slots.php?date=${encodeURIComponent(selectedDate)}`);
+            const response = await fetch(`../api/get_slots.php?date=${encodeURIComponent(selectedDate)}`);
+            const contentType = response.headers.get('content-type') || '';
+
+            if (!contentType.includes('application/json')) {
+                throw new Error('Invalid server response format');
+            }
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Failed to fetch slots');
+
             renderSlots(availableTimes, data.booked_slots || []);
         } catch (err) {
             showAlert(err.message, 'danger');
@@ -68,6 +63,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
                     btn.classList.add('selected');
                     selectedTimeInput.value = time;
+                    
+                    // Enable submit button when date and time are both selected
                     submitBtn.disabled = false;
                 });
             }
@@ -81,24 +78,34 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
 
         const payload = {
-            name: document.getElementById('name').value,
-            phone: document.getElementById('phone').value,
+            name: document.getElementById('name').value.trim(),
+            phone: document.getElementById('phone').value.trim(),
             service: document.getElementById('service').value,
             date: dateInput.value,
             time: selectedTimeInput.value
         };
 
+        // Validate complete payload
+        if (!payload.date || !payload.time) {
+            showAlert('Please select both a date and an available time slot.', 'warning');
+            return;
+        }
+
         submitBtn.disabled = true;
 
         try {
-            const result = await safeFetchJson('../api/book.php', {
+            const response = await fetch('../api/book.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
 
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Booking failed');
+
             showAlert(result.message, 'success');
             bookingForm.reset();
+            selectedTimeInput.value = '';
             slotsContainer.innerHTML = '<small class="text-muted">Select a date to view available time slots</small>';
         } catch (err) {
             showAlert(err.message, 'danger');
