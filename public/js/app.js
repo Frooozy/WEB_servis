@@ -13,15 +13,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const availableTimes = ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
 
-    // Function to handle slot fetching on date selection
-    const handleDateChange = async () => {
-        const selectedDate = dateInput.value;
+    // Helper to format Date object into YYYY-MM-DD
+    function normalizeDateString(rawDate) {
+        if (!rawDate) return '';
+        const d = new Date(rawDate);
+        return isNaN(d.getTime()) ? rawDate : d.toISOString().split('T')[0];
+    }
+
+    // Explicitly load slots for a given date
+    async function loadSlotsForSelectedDate() {
+        // Always extract value in standard ISO format YYYY-MM-DD
+        const formattedDate = normalizeDateString(dateInput.value);
         
-        // Reset previously selected time slot
         selectedTimeInput.value = '';
         submitBtn.disabled = true;
 
-        if (!selectedDate) {
+        if (!formattedDate) {
             slotsContainer.innerHTML = '<small class="text-muted">Select a date to view available time slots</small>';
             return;
         }
@@ -29,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
         slotsContainer.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Loading slots...';
 
         try {
-            const response = await fetch(`../api/get_slots.php?date=${encodeURIComponent(selectedDate)}`);
+            const response = await fetch(`../api/get_slots.php?date=${encodeURIComponent(formattedDate)}`);
             const contentType = response.headers.get('content-type') || '';
 
             if (!contentType.includes('application/json')) {
@@ -44,16 +51,11 @@ document.addEventListener('DOMContentLoaded', () => {
             showAlert(err.message, 'danger');
             slotsContainer.innerHTML = '<small class="text-danger">Failed to load available slots</small>';
         }
-    };
-
-    // Listen to both 'change' and 'input' events for real-time responsiveness
-    dateInput.addEventListener('change', handleDateChange);
-    dateInput.addEventListener('input', handleDateChange);
-
-    // If date is already pre-filled on load, fetch slots immediately
-    if (dateInput.value) {
-        handleDateChange();
     }
+
+    // Attach listeners to both change and input events
+    dateInput.addEventListener('change', loadSlotsForSelectedDate);
+    dateInput.addEventListener('input', loadSlotsForSelectedDate);
 
     // Render interactive time slots
     function renderSlots(allSlots, bookedSlots) {
@@ -88,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
             name: document.getElementById('name').value.trim(),
             phone: document.getElementById('phone').value.trim(),
             service: document.getElementById('service').value,
-            date: dateInput.value,
+            date: normalizeDateString(dateInput.value),
             time: selectedTimeInput.value
         };
 
