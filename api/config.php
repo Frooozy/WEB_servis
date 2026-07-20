@@ -3,9 +3,13 @@
 
 define('DB_PATH', __DIR__ . '/../db/database.sqlite');
 
+/**
+ * Establish a connection to the SQLite database.
+ * 
+ * @return PDO
+ */
 function getDbConnection(): PDO {
     try {
-        // Создаем папку db, если её нет
         $dbDir = dirname(DB_PATH);
         if (!is_dir($dbDir)) {
             mkdir($dbDir, 0755, true);
@@ -15,7 +19,7 @@ function getDbConnection(): PDO {
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
 
-        // Инициализация таблицы при первом запуске
+        // Auto-initialize schema on first connection
         $pdo->exec("
             CREATE TABLE IF NOT EXISTS bookings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
