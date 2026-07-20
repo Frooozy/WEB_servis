@@ -13,11 +13,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const availableTimes = ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
 
-    // Handle date selection change
-    dateInput.addEventListener('change', async () => {
+    // Function to handle slot fetching on date selection
+    const handleDateChange = async () => {
         const selectedDate = dateInput.value;
         
-        // Reset selected time slot on date change
+        // Reset previously selected time slot
         selectedTimeInput.value = '';
         submitBtn.disabled = true;
 
@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const contentType = response.headers.get('content-type') || '';
 
             if (!contentType.includes('application/json')) {
-                throw new Error('Invalid server response format');
+                throw new Error('Server returned invalid content type');
             }
 
             const data = await response.json();
@@ -44,7 +44,16 @@ document.addEventListener('DOMContentLoaded', () => {
             showAlert(err.message, 'danger');
             slotsContainer.innerHTML = '<small class="text-danger">Failed to load available slots</small>';
         }
-    });
+    };
+
+    // Listen to both 'change' and 'input' events for real-time responsiveness
+    dateInput.addEventListener('change', handleDateChange);
+    dateInput.addEventListener('input', handleDateChange);
+
+    // If date is already pre-filled on load, fetch slots immediately
+    if (dateInput.value) {
+        handleDateChange();
+    }
 
     // Render interactive time slots
     function renderSlots(allSlots, bookedSlots) {
@@ -63,8 +72,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
                     btn.classList.add('selected');
                     selectedTimeInput.value = time;
-                    
-                    // Enable submit button when date and time are both selected
                     submitBtn.disabled = false;
                 });
             }
@@ -73,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Submit booking request safely
+    // Submit booking request
     bookingForm.addEventListener('submit', async (e) => {
         e.preventDefault();
 
@@ -85,9 +92,8 @@ document.addEventListener('DOMContentLoaded', () => {
             time: selectedTimeInput.value
         };
 
-        // Validate complete payload
         if (!payload.date || !payload.time) {
-            showAlert('Please select both a date and an available time slot.', 'warning');
+            showAlert('Please select both a valid date and a time slot.', 'warning');
             return;
         }
 

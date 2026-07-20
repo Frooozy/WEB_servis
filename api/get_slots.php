@@ -1,7 +1,5 @@
 <?php
 // api/get_slots.php
-
-// Explicitly set response headers and prevent direct HTML error output
 header('Content-Type: application/json; charset=utf-8');
 ini_set('display_errors', '0');
 error_reporting(E_ALL);
@@ -19,7 +17,7 @@ try {
 
     $pdo = getDbConnection();
 
-    // Query occupied slots safely using PDO prepared statements
+    // Fetch occupied slots using prepared statements (SQLi protection)
     $stmt = $pdo->prepare("SELECT booking_time FROM bookings WHERE booking_date = :bdate");
     $stmt->execute([':bdate' => $date]);
 
@@ -27,7 +25,6 @@ try {
 
     echo json_encode(['booked_slots' => $bookedSlots]);
 } catch (Throwable $e) {
-    // Log actual server exception and return formatted JSON error response
     error_log($e->getMessage());
     http_response_code(500);
     echo json_encode(['error' => 'Internal server error: ' . $e->getMessage()]);
